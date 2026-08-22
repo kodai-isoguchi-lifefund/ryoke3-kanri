@@ -755,9 +755,20 @@ function renderPlot(){
   const gross=Math.round((pd.price-cost)*100)/100;
   const grossPct=Math.round(gross/pd.price*100);
   const tsubo=planTsubo(pd.price);
+  // 仕入決済までの日数（milestoneから「仕入決済」を探す、なければ2026-11-30）
+  const decMs=D.milestones&&D.milestones.find(m=>m.label&&m.label.includes('決済'));
+  const decDate=new Date(decMs?decMs.date:'2026-11-30');
+  const decDiff=Math.ceil((decDate-new Date())/86400000);
+  const decColor=decDiff<0?'var(--bad)':decDiff<=30?'var(--bad)':decDiff<=60?'var(--warn)':'var(--accent)';
+  const decLabel=decMs?decMs.label:'仕入決済（予定）';
+  const decSub=decDiff<0?`${Math.abs(decDiff)}日経過`:`あと ${decDiff} 日`;
   document.getElementById('strip').innerHTML=`
     <div class="sum-card"><div class="sl">ステータス</div><div class="sv" style="font-size:14px;margin-top:4px"><span class="badge ${ST_CLASS[p.status]||'b-active'}">${ST_LABEL[p.status]||p.status}</span></div></div>
-    <div class="sum-card"><div class="sl">設定プラン</div><div class="sv" style="font-size:14px;margin-top:4px">${pd.label}</div></div>
+    <div class="sum-card" style="cursor:pointer" title="${decDate.toLocaleDateString('ja-JP')}" onclick="setClosingDate()">
+      <div class="sl">仕入決済まで</div>
+      <div class="sv" style="color:${decColor}">${decDiff<0?'—':decDiff}<span style="font-size:13px;font-weight:400;color:var(--text-m)">日</span></div>
+      <div class="ss">${decSub}（${decDate.toLocaleDateString('ja-JP',{month:'long',day:'numeric'})}）</div>
+    </div>
     <div class="sum-card"><div class="sl">計画売価</div><div class="sv" style="color:var(--accent)">${pd.price.toLocaleString()}<span style="font-size:13px;font-weight:400;color:var(--text-m)">万</span></div><div class="ss">坪単価 ${tsubo}万円/坪</div></div>
     <div class="sum-card"><div class="sl">計画粗利</div><div class="sv" style="color:var(--ok)">${gross.toLocaleString()}<span style="font-size:13px;font-weight:400;color:var(--text-m)">万</span></div><div class="ss">粗利率 ${grossPct}%</div></div>
   `;
