@@ -620,7 +620,8 @@ const DB_REF = firebase.database().ref('ryoke3');
 
 function getPlans(){return D.plans||DEF.plans;}
 function totalCost(){return (D.costs||DEF.costs).reduce((s,c)=>s+(Number(c.amount)||0),0);}
-function planTsubo(price){return Math.round(price/81.29*100)/100;}
+const TSUBO = 81.45; // 有効坪数（セットバック後）
+function planTsubo(price){return Math.round(price/TSUBO*10)/10;} // 万円/坪（小数1桁）
 
 const ST_LABEL = {water:'水面下（仕入前）',contracted:'仕入契約済',active:'情報提供前',provided:'情報提供済',inquiry:'反響あり',negotiation:'交渉中',applied:'申込済',sold:'成約済'};
 const ST_CLASS = {water:'b-alert',contracted:'b-hold',active:'b-active',provided:'b-hold',inquiry:'b-inquiry',negotiation:'b-inquiry',applied:'b-applied',sold:'b-sold'};
@@ -656,9 +657,9 @@ const DEF = {
     {id:6,name:'成約（目標）',note:'〜2027年2月末',status:'todo',pct:0},
   ],
   plans:{
-    A:{label:'Aプラン（強気）',price:3580,tsubo:42.83},
-    B:{label:'Bプラン（適正）',price:3350,tsubo:40.08},
-    C:{label:'Cプラン（売切）',price:3100,tsubo:37.08},
+    A:{label:'Aプラン（初回価格）',price:2700},
+    B:{label:'Bプラン（適正価格）',price:2500},
+    C:{label:'Cプラン（売切価格）',price:2400},
   },
   team:[
     {id:1,name:'山本',role:'課長 / 管理者',pm:false},
@@ -670,12 +671,16 @@ const DEF = {
   ],
   closingDate:'',
   costs:[
-    {id:51,name:'仕入価格',amount:2700,note:'公簿83.57坪 坪単価32.31万円'},
-    {id:52,name:'登記・印紙費用',amount:60,note:'所有権移転・抵当権設定等'},
-    {id:53,name:'仲介手数料',amount:0,note:'売主手数料不払い'},
-    {id:54,name:'固都税按分',amount:5,note:'引渡日で按分'},
-    {id:55,name:'水路占用許可費用',amount:5,note:'北側水路占用許可'},
-    {id:56,name:'その他諸費用',amount:50,note:'測量・調査・事務費等'},
+    {id:51,name:'物件価格',amount:2000,note:'浜松市中央区領家3丁目3-8'},
+    {id:52,name:'登記費用',amount:34,note:'所有権移転等'},
+    {id:53,name:'契約書印紙',amount:1,note:'仕入れコスト'},
+    {id:54,name:'不動産取得税',amount:24,note:'仕入れコスト'},
+    {id:55,name:'仕入仲介手数料',amount:72.6,note:'仕入れコスト'},
+    {id:56,name:'除草防止剤',amount:2,note:'リフォーム経費'},
+    {id:57,name:'固都税',amount:15,note:'販売コスト'},
+    {id:58,name:'印紙（販売）',amount:1,note:'販売コスト'},
+    {id:59,name:'土地謄本',amount:0.06,note:'販売コスト'},
+    {id:60,name:'北側ブロックやり替え費',amount:44,note:'販売コスト'},
   ],
   nextId:100,
   docs:[],
@@ -1225,14 +1230,11 @@ function renderBudget(){
     return `<div class="scen ${cls}">
       <div class="scen-lbl">${pl.label}</div>
       <div style="display:flex;align-items:baseline;gap:4px;margin:4px 0 2px">
-        <input type="number" value="${pl.price}" min="0" step="10" style="width:120px;font-size:22px;font-weight:700;border:none;border-bottom:2px solid currentColor;background:transparent;font-variant-numeric:tabular-nums;color:inherit;font-family:var(--serif);outline:none;padding:2px 0" onchange="setPlanPrice('${k}','price',+this.value)" oninput="setPlanPrice('${k}','price',+this.value)">
+        <input type="number" value="${pl.price}" min="0" step="10" style="width:120px;font-size:22px;font-weight:700;border:none;border-bottom:2px solid currentColor;background:transparent;font-variant-numeric:tabular-nums;color:inherit;font-family:var(--serif);outline:none;padding:2px 0" onchange="setPlanPrice('${k}',+this.value)" oninput="setPlanPrice('${k}',+this.value)">
         <span style="font-size:14px;opacity:.7">万円</span>
       </div>
       <div class="scen-sub">粗利 ${gross}万円（${grossPct}%）</div>
-      <div style="display:flex;align-items:center;gap:4px;margin-top:4px">
-        <input type="number" value="${pl.tsubo||tsubo}" min="0" step="0.1" style="width:60px;font-size:13px;border:none;border-bottom:1px solid currentColor;background:transparent;font-variant-numeric:tabular-nums;color:inherit;font-family:var(--sans);outline:none;opacity:.8" onchange="setPlanPrice('${k}','tsubo',+this.value)">
-        <span style="font-size:11px;opacity:.7">万/坪</span>
-      </div>
+      <div class="scen-sub" style="margin-top:3px">坪単価 ${tsubo}万/坪（${TSUBO}坪換算）</div>
     </div>`;
   }).join('');
   const costRows=costs.map(c=>`<tr>
@@ -1272,9 +1274,9 @@ function renderBudget(){
     </div>
   `;
 }
-function setPlanPrice(key,field,val){
+function setPlanPrice(key,val){
   if(!D.plans)D.plans=JSON.parse(JSON.stringify(DEF.plans));
-  D.plans[key][field]=val;
+  D.plans[key].price=val;
   save();renderBudget();renderPlot();updateHeader();
 }
 function setCostField(id,field,val){
