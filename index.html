@@ -336,40 +336,7 @@ div:hover>.link-edit,div:hover>.link-x{opacity:1}
 
 <!-- 収支 -->
 <div class="panel" id="tab-budget">
-  <h2 class="sec">💴 価格シナリオ比較</h2>
-  <div class="scen-grid">
-    <div class="scen sa"><div class="scen-lbl">A 強気価格</div><div class="scen-ttl">3,580万円</div><div class="scen-sub">粗利 約760万円（21.2%）</div><div class="scen-sub" style="margin-top:3px">坪単価 約42.8万/坪</div></div>
-    <div class="scen sb"><div class="scen-lbl">B 適正価格（基本）</div><div class="scen-ttl">3,350万円</div><div class="scen-sub">粗利 530万円（15.8%）</div><div class="scen-sub" style="margin-top:3px">坪単価 約40.1万/坪</div></div>
-    <div class="scen sc"><div class="scen-lbl">C 売切価格（90日〜）</div><div class="scen-ttl">3,100万円</div><div class="scen-sub">粗利 280万円（9.0%）</div><div class="scen-sub" style="margin-top:3px">坪単価 約37.1万/坪</div></div>
-  </div>
-  <h2 class="sec">📋 原価内訳（概算）</h2>
-  <div class="card btbl-wrap" style="margin-bottom:22px">
-    <table class="btbl">
-      <thead><tr><th>項目</th><th>金額（万円）</th><th>備考</th></tr></thead>
-      <tbody>
-        <tr><td>仕入価格</td><td>2,700</td><td>公簿83.57坪 坪単価32.31万円</td></tr>
-        <tr><td>登記・印紙費用</td><td>60</td><td>所有権移転・抵当権設定等</td></tr>
-        <tr><td>仲介手数料</td><td>0</td><td>売主手数料不払い（契約書確認済）</td></tr>
-        <tr><td>固都税按分</td><td>5</td><td>引渡日で按分</td></tr>
-        <tr><td>水路占用許可費用</td><td>5</td><td>北側水路占用許可（要申請）</td></tr>
-        <tr><td>その他諸費用</td><td>50</td><td>測量・調査・事務費等</td></tr>
-      </tbody>
-      <tfoot><tr><td>原価合計</td><td>2,820</td><td>坪単価 約33.7万円/坪</td></tr></tfoot>
-    </table>
-  </div>
-  <p style="font-size:11px;color:var(--text-m);margin-bottom:22px">※ 上記は概算値。確定後に更新すること。セットバック後有効面積81.29坪での坪単価は別途計算。</p>
-  <h2 class="sec">📈 GMROI分析（社内基準：40%）</h2>
-  <div class="card btbl-wrap">
-    <table class="btbl">
-      <thead><tr><th>シナリオ</th><th>粗利率</th><th>年間回転</th><th>GMROI</th><th>判定</th></tr></thead>
-      <tbody>
-        <tr><td>Bプラン・90日完売（年4回転）</td><td>15.8%</td><td>×4</td><td class="g-ok">63.2%</td><td><span class="badge b-sold">◎ 社内基準の1.6倍</span></td></tr>
-        <tr><td>Bプラン・180日（年2回転）</td><td>15.8%</td><td>×2</td><td class="g-warn">31.6%</td><td><span class="badge b-inquiry">△ 社内基準を下回る</span></td></tr>
-        <tr><td>Cプラン・180日（年2回転）</td><td>9.0%</td><td>×2</td><td class="g-bad">18.0%</td><td><span class="badge" style="background:var(--bad-bg);color:var(--bad)">✕</span></td></tr>
-        <tr><td>Cプラン・270日（年1.35回転）</td><td>9.0%</td><td>×1.35</td><td class="g-bad">12.2%</td><td><span class="badge" style="background:var(--bad-bg);color:var(--bad)">✕ 最悪ケース</span></td></tr>
-      </tbody>
-    </table>
-  </div>
+  <div id="budget-content"></div>
 </div>
 
 <!-- 物件情報 -->
@@ -633,12 +600,9 @@ firebase.initializeApp({
 });
 const DB_REF = firebase.database().ref('ryoke3');
 
-const PLANS = {
-  A:{label:'Aプラン（強気）',price:3580,tsubo:42.83},
-  B:{label:'Bプラン（適正）',price:3350,tsubo:40.08},
-  C:{label:'Cプラン（売切）',price:3100,tsubo:37.08},
-};
-const COST = 2820; // 原価合計（万円）
+function getPlans(){return D.plans||DEF.plans;}
+function totalCost(){return (D.costs||DEF.costs).reduce((s,c)=>s+(Number(c.amount)||0),0);}
+function planTsubo(price){return Math.round(price/81.29*100)/100;}
 
 const ST_LABEL = {water:'水面下（仕入前）',contracted:'仕入契約済',active:'情報提供前',provided:'情報提供済',inquiry:'反響あり',negotiation:'交渉中',applied:'申込済',sold:'成約済'};
 const ST_CLASS = {water:'b-alert',contracted:'b-hold',active:'b-active',provided:'b-hold',inquiry:'b-inquiry',negotiation:'b-inquiry',applied:'b-applied',sold:'b-sold'};
@@ -672,6 +636,19 @@ const DEF = {
     {id:4,name:'仕入決済',note:'11月末予定',status:'todo',pct:0},
     {id:5,name:'販売・一般公開',note:'決済後〜',status:'todo',pct:0},
     {id:6,name:'成約（目標）',note:'〜2027年2月末',status:'todo',pct:0},
+  ],
+  plans:{
+    A:{label:'Aプラン（強気）',price:3580},
+    B:{label:'Bプラン（適正）',price:3350},
+    C:{label:'Cプラン（売切）',price:3100},
+  },
+  costs:[
+    {id:51,name:'仕入価格',amount:2700,note:'公簿83.57坪 坪単価32.31万円'},
+    {id:52,name:'登記・印紙費用',amount:60,note:'所有権移転・抵当権設定等'},
+    {id:53,name:'仲介手数料',amount:0,note:'売主手数料不払い'},
+    {id:54,name:'固都税按分',amount:5,note:'引渡日で按分'},
+    {id:55,name:'水路占用許可費用',amount:5,note:'北側水路占用許可'},
+    {id:56,name:'その他諸費用',amount:50,note:'測量・調査・事務費等'},
   ],
   nextId:100,
   docs:[],
@@ -707,20 +684,24 @@ function updateHeader(){
   const dec=new Date('2026-11-30');
   const diff=Math.ceil((dec-new Date())/86400000);
   document.getElementById('stat-days').textContent=diff>0?diff+'日':'決済済';
-  const gross=PLANS[p.plan].price-COST;
+  const plans=getPlans();
+  const gross=plans[p.plan].price-totalCost();
   document.getElementById('stat-profit').textContent=gross+'万';
 }
 
 // Plot card
 function renderPlot(){
   const p=D.plot;
-  const pd=PLANS[p.plan];
-  const gross=pd.price-COST;
+  const plans=getPlans();
+  const pd=plans[p.plan];
+  const cost=totalCost();
+  const gross=pd.price-cost;
   const grossPct=Math.round(gross/pd.price*100);
+  const tsubo=planTsubo(pd.price);
   document.getElementById('strip').innerHTML=`
     <div class="sum-card"><div class="sl">ステータス</div><div class="sv" style="font-size:14px;margin-top:4px"><span class="badge ${ST_CLASS[p.status]||'b-active'}">${ST_LABEL[p.status]||p.status}</span></div></div>
     <div class="sum-card"><div class="sl">設定プラン</div><div class="sv" style="font-size:14px;margin-top:4px">${pd.label}</div></div>
-    <div class="sum-card"><div class="sl">計画売価</div><div class="sv" style="color:var(--accent)">${pd.price.toLocaleString()}<span style="font-size:13px;font-weight:400;color:var(--text-m)">万</span></div><div class="ss">坪単価 ${pd.tsubo}万円/坪</div></div>
+    <div class="sum-card"><div class="sl">計画売価</div><div class="sv" style="color:var(--accent)">${pd.price.toLocaleString()}<span style="font-size:13px;font-weight:400;color:var(--text-m)">万</span></div><div class="ss">坪単価 ${tsubo}万円/坪</div></div>
     <div class="sum-card"><div class="sl">計画粗利</div><div class="sv" style="color:var(--ok)">${gross.toLocaleString()}<span style="font-size:13px;font-weight:400;color:var(--text-m)">万</span></div><div class="ss">粗利率 ${grossPct}%</div></div>
   `;
   document.getElementById('plot-card').innerHTML=`
@@ -736,15 +717,15 @@ function renderPlot(){
       </div>
       <div class="pc-body">
         <div class="pt">
-          <button class="${p.plan==='A'?'a-on':''}" onclick="setPlan('A')">A 強気 ${PLANS.A.price}万</button>
-          <button class="${p.plan==='B'?'b-on':''}" onclick="setPlan('B')">B 適正 ${PLANS.B.price}万</button>
-          <button class="${p.plan==='C'?'c-on':''}" onclick="setPlan('C')">C 売切 ${PLANS.C.price}万</button>
+          <button class="${p.plan==='A'?'a-on':''}" onclick="setPlan('A')">A 強気 ${plans.A.price}万</button>
+          <button class="${p.plan==='B'?'b-on':''}" onclick="setPlan('B')">B 適正 ${plans.B.price}万</button>
+          <button class="${p.plan==='C'?'c-on':''}" onclick="setPlan('C')">C 売切 ${plans.C.price}万</button>
         </div>
         <div class="price-row">
           <span class="price-big">${pd.price.toLocaleString()}</span>
           <span class="price-unit">万円</span>
         </div>
-        <div class="price-sub">坪単価 ${pd.tsubo}万円／坪（有効81.29坪換算）　粗利 ${gross}万円（${grossPct}%）</div>
+        <div class="price-sub">坪単価 ${tsubo}万円／坪（有効81.29坪換算）　粗利 ${gross}万円（${grossPct}%）</div>
         <div class="strow">
           <span class="stlbl">ステータス</span>
           <select class="stsel" onchange="setStatus(this.value)">
@@ -762,7 +743,7 @@ function renderPlot(){
   `;
 }
 
-function setPlan(plan){D.plot.plan=plan;save();renderPlot();updateHeader();toast(`${PLANS[plan].label}に変更`);}
+function setPlan(plan){D.plot.plan=plan;save();renderPlot();updateHeader();toast(`${getPlans()[plan].label}に変更`);}
 function setStatus(st){D.plot.status=st;save();renderPlot();updateHeader();toast(`ステータス → ${ST_LABEL[st]}`);}
 function addIq(d){D.plot.inquiries=Math.max(0,(D.plot.inquiries||0)+d);save();const el=document.getElementById('iq1');if(el)el.textContent=D.plot.inquiries;updateHeader();toast('問合せ数を更新');}
 function setMemo(v){D.plot.memo=v;save();}
@@ -1161,9 +1142,91 @@ function safeDelete(btn,cb){
   setTimeout(()=>{if(btn._confirming){btn._confirming=false;btn.textContent='削除';}},2500);
 }
 
+// Budget
+function renderBudget(){
+  const plans=getPlans();
+  const costs=D.costs||DEF.costs;
+  const cost=totalCost();
+  const INP='border:none;background:transparent;font-family:var(--sans);font-size:13px;color:var(--text);outline:none;width:100%';
+  const INP_NUM='border:none;background:transparent;font-family:var(--sans);font-size:13px;color:var(--text);outline:none;width:80px;text-align:right;font-variant-numeric:tabular-nums';
+  const scenHTML=['A','B','C'].map(k=>{
+    const pl=plans[k];
+    const gross=pl.price-cost;
+    const grossPct=pl.price>0?Math.round(gross/pl.price*100):0;
+    const tsubo=planTsubo(pl.price);
+    const cls=k==='A'?'sa':k==='B'?'sb':'sc';
+    return `<div class="scen ${cls}">
+      <div class="scen-lbl">${pl.label}</div>
+      <div style="display:flex;align-items:baseline;gap:4px;margin:4px 0 2px">
+        <input type="number" value="${pl.price}" min="0" step="10" style="width:120px;font-size:22px;font-weight:700;border:none;border-bottom:2px solid currentColor;background:transparent;font-variant-numeric:tabular-nums;color:inherit;font-family:var(--serif);outline:none;padding:2px 0" onchange="setPlanPrice('${k}',+this.value)" oninput="setPlanPrice('${k}',+this.value)">
+        <span style="font-size:14px;opacity:.7">万円</span>
+      </div>
+      <div class="scen-sub">粗利 ${gross}万円（${grossPct}%）</div>
+      <div class="scen-sub" style="margin-top:3px">坪単価 ${tsubo}万/坪</div>
+    </div>`;
+  }).join('');
+  const costRows=costs.map(c=>`<tr>
+    <td><input type="text" value="${c.name}" style="${INP}" onchange="setCostField(${c.id},'name',this.value)"></td>
+    <td><input type="number" value="${c.amount}" min="0" style="${INP_NUM}" onchange="setCostField(${c.id},'amount',+this.value)" oninput="setCostField(${c.id},'amount',+this.value)"></td>
+    <td><input type="text" value="${c.note||''}" style="${INP}" onchange="setCostField(${c.id},'note',this.value)"></td>
+    <td style="width:50px;text-align:center"><button class="cc-btn del" onclick="delCost(${c.id})">削除</button></td>
+  </tr>`).join('');
+  const bPl=plans['B'];const bG=bPl.price-cost;const bGP=bPl.price>0?Math.round(bG/bPl.price*100):0;
+  const cPl=plans['C'];const cG=cPl.price-cost;const cGP=cPl.price>0?Math.round(cG/cPl.price*100):0;
+  function gmroi(gp,rot){return Math.round(gp*rot);}
+  function gmClass(v){return v>=40?'g-ok':v>=20?'g-warn':'g-bad';}
+  function gmBadge(v){return v>=40?`<span class="badge b-sold">◎ 社内基準の${Math.round(v/40*10)/10}倍</span>`:v>=20?`<span class="badge b-inquiry">△ 基準以下</span>`:`<span class="badge" style="background:var(--bad-bg);color:var(--bad)">✕</span>`;}
+  document.getElementById('budget-content').innerHTML=`
+    <h2 class="sec">💴 価格シナリオ <span style="font-size:11px;color:var(--text-m);font-weight:400">数字を直接クリックして編集できます</span></h2>
+    <div class="scen-grid">${scenHTML}</div>
+    <h2 class="sec">📋 原価内訳</h2>
+    <div class="card btbl-wrap" style="margin-bottom:10px">
+      <table class="btbl">
+        <thead><tr><th>項目</th><th>金額（万円）</th><th>備考</th><th></th></tr></thead>
+        <tbody>${costRows}</tbody>
+        <tfoot><tr><td>原価合計</td><td>${cost}</td><td>坪単価 約${Math.round(cost/81.29*10)/10}万円/坪（有効81.29坪）</td><td></td></tr></tfoot>
+      </table>
+    </div>
+    <button class="btn-g" style="margin-bottom:22px" onclick="addCost()">＋ 原価項目を追加</button>
+    <h2 class="sec">📈 GMROI分析（社内基準：40%）</h2>
+    <div class="card btbl-wrap">
+      <table class="btbl">
+        <thead><tr><th>シナリオ</th><th>粗利率</th><th>年間回転</th><th>GMROI</th><th>判定</th></tr></thead>
+        <tbody>
+          <tr><td>Bプラン・90日完売（年4回転）</td><td>${bGP}%</td><td>×4</td><td class="${gmClass(gmroi(bGP,4))}">${gmroi(bGP,4)}%</td><td>${gmBadge(gmroi(bGP,4))}</td></tr>
+          <tr><td>Bプラン・180日（年2回転）</td><td>${bGP}%</td><td>×2</td><td class="${gmClass(gmroi(bGP,2))}">${gmroi(bGP,2)}%</td><td>${gmBadge(gmroi(bGP,2))}</td></tr>
+          <tr><td>Cプラン・180日（年2回転）</td><td>${cGP}%</td><td>×2</td><td class="${gmClass(gmroi(cGP,2))}">${gmroi(cGP,2)}%</td><td>${gmBadge(gmroi(cGP,2))}</td></tr>
+          <tr><td>Cプラン・270日（年1.35回転）</td><td>${cGP}%</td><td>×1.35</td><td class="${gmClass(Math.round(cGP*1.35))}">${Math.round(cGP*1.35)}%</td><td>${gmBadge(Math.round(cGP*1.35))}</td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+function setPlanPrice(key,price){
+  if(!D.plans)D.plans=JSON.parse(JSON.stringify(DEF.plans));
+  D.plans[key].price=price;
+  save();renderBudget();renderPlot();updateHeader();
+}
+function setCostField(id,field,val){
+  if(!D.costs)D.costs=JSON.parse(JSON.stringify(DEF.costs));
+  const c=D.costs.find(x=>x.id===id);if(!c)return;
+  c[field]=val;save();
+  if(field==='amount'){renderBudget();renderPlot();updateHeader();}
+}
+function addCost(){
+  if(!D.costs)D.costs=JSON.parse(JSON.stringify(DEF.costs));
+  D.costs.push({id:++D.nextId,name:'新規項目',amount:0,note:''});
+  save();renderBudget();
+}
+function delCost(id){
+  if(!D.costs)D.costs=JSON.parse(JSON.stringify(DEF.costs));
+  D.costs=D.costs.filter(x=>x.id!==id);save();renderBudget();renderPlot();updateHeader();
+}
+
 // Render all
 function renderAll(){
   renderPlot();
+  renderBudget();
   renderMilestones();
   renderPhases();
   renderTasks();
@@ -1184,6 +1247,8 @@ DB_REF.once('value', snap=>{
     if(!D.tasks)D.tasks=DEF.tasks;
     if(!D.milestones)D.milestones=DEF.milestones;
     if(!D.phases)D.phases=DEF.phases;
+    if(!D.plans)D.plans=JSON.parse(JSON.stringify(DEF.plans));
+    if(!D.costs)D.costs=JSON.parse(JSON.stringify(DEF.costs));
     if(!D.docs)D.docs=[];
     if(!D.links)D.links=DEF.links;
   }
