@@ -43,7 +43,8 @@ body{font-family:var(--sans);font-size:14px;line-height:1.6;color:var(--text);ba
 .hdr-ttl h1{font-family:var(--serif);font-size:20px;font-weight:700;color:var(--text);line-height:1.2;border-radius:4px;cursor:text;transition:background .12s}
 .hdr-ttl .sub{font-size:11px;color:var(--text-m);margin-top:2px;border-radius:4px;cursor:text;transition:background .12s}
 .hdr-ttl h1:hover,.hdr-ttl .sub:hover{background:var(--accent-lt)}
-.hdr-ttl h1[contenteditable="true"],.hdr-ttl .sub[contenteditable="true"]{outline:2px solid var(--accent);padding:1px 5px;background:var(--surface)}
+.hdr-ttl h1[contenteditable="true"],.hdr-ttl .sub[contenteditable="true"]{outline:none}
+.hdr-ttl h1[contenteditable="true"]:focus,.hdr-ttl .sub[contenteditable="true"]:focus{outline:2px solid var(--accent);padding:1px 5px;background:var(--surface)}
 .hdr-stats{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
 .stat{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
 .stat .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--accent);line-height:1}
