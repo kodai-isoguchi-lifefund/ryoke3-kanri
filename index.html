@@ -233,7 +233,11 @@ div:hover>.link-edit,div:hover>.link-x{opacity:1}
 .btn-g:hover{background:var(--accent-lt)}
 .modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px 0}
 .modal-bg.on{display:flex}
-.modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:22px 24px;width:min(440px,92vw);box-shadow:0 8px 40px rgba(0,0,0,.22);margin:auto}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:22px 24px;width:min(440px,92vw);box-shadow:0 8px 40px rgba(0,0,0,.22);margin:auto;max-height:90vh;overflow-y:auto}
+.dragging{opacity:.35;border:2px dashed var(--accent)!important}
+.drag-over{border-top:3px solid var(--accent)!important;margin-top:-1px}
+.drag-handle{cursor:grab;color:var(--text-m);font-size:13px;padding:0 4px;user-select:none}
+.drag-handle:active{cursor:grabbing}
 .modal h3{font-family:var(--serif);font-size:15px;font-weight:700;color:var(--text);margin-bottom:16px}
 .modal label{display:block;font-size:12px;color:var(--text-m);margin-bottom:4px;margin-top:11px}
 .modal label:first-of-type{margin-top:0}
@@ -263,8 +267,9 @@ div:hover>.link-edit,div:hover>.link-x{opacity:1}
     </div>
     <div class="hdr-stats">
       <div class="stat"><span class="v" id="stat-status">水面下</span><span class="l">現在フェーズ</span></div>
-      <div class="stat"><span class="v" id="stat-days">—</span><span class="l">決済まで</span></div>
+      <div class="stat"><span class="v" id="stat-days">—</span><span class="l" id="stat-days-lbl">決済まで</span></div>
       <div class="stat"><span class="v" id="stat-profit">—</span><span class="l">計画粗利</span></div>
+      <div class="stat" style="cursor:pointer" title="仕入決済日を設定" onclick="setClosingDate()"><span style="font-size:11px;color:var(--text-m);border:1px dashed var(--border);border-radius:4px;padding:2px 6px">⚙ 決済日設定</span></div>
     </div>
   </div>
   <nav class="nav">
@@ -402,13 +407,26 @@ div:hover>.link-edit,div:hover>.link-x{opacity:1}
 <!-- チーム -->
 <div class="panel" id="tab-team">
   <h2 class="sec">👥 プロジェクト体制</h2>
-  <div class="mem-grid">
-    <div class="mem-card"><div class="mem-av" style="background:var(--warn-bg);color:var(--warn)">山</div><div class="mem-name">山本</div><div class="mem-role">課長 / 管理者</div></div>
-    <div class="mem-card"><div class="mem-av pm">磯</div><div class="mem-name">磯口</div><div class="mem-role">PM / プロジェクトリーダー</div><div class="mem-role">全フェーズ最終責任</div></div>
-    <div class="mem-card"><div class="mem-av">望</div><div class="mem-name">望月</div><div class="mem-role">営業・客付け</div></div>
-    <div class="mem-card"><div class="mem-av">成</div><div class="mem-name">成山</div><div class="mem-role">営業・客付け</div></div>
-    <div class="mem-card"><div class="mem-av">清</div><div class="mem-name">清水</div><div class="mem-role">営業・客付け</div></div>
-    <div class="mem-card"><div class="mem-av">佐</div><div class="mem-name">佐藤</div><div class="mem-role">外構担当</div></div>
+  <div class="mem-grid" id="team-grid"></div>
+  <button class="btn-p" style="margin-top:16px" onclick="openTeamModal()">＋ メンバー追加</button>
+</div>
+
+<!-- チームモーダル -->
+<div class="modal-bg" id="team-modal">
+  <div class="modal">
+    <h3 id="team-modal-ttl">👥 メンバーを追加</h3>
+    <input type="hidden" id="team-id-in" value="">
+    <label>氏名 *</label>
+    <input type="text" id="team-name-in" placeholder="例：磯口">
+    <label>役割 *</label>
+    <input type="text" id="team-role-in" placeholder="例：PM / プロジェクトリーダー">
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:11px">
+      <input type="checkbox" id="team-pm-in" style="width:auto;accent-color:var(--accent)"> PMとしてマーク（アバターを強調表示）
+    </label>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeTeamModal()">キャンセル</button>
+      <button class="btn-p" onclick="saveTeam()">保存</button>
+    </div>
   </div>
 </div>
 
@@ -638,10 +656,19 @@ const DEF = {
     {id:6,name:'成約（目標）',note:'〜2027年2月末',status:'todo',pct:0},
   ],
   plans:{
-    A:{label:'Aプラン（強気）',price:3580},
-    B:{label:'Bプラン（適正）',price:3350},
-    C:{label:'Cプラン（売切）',price:3100},
+    A:{label:'Aプラン（強気）',price:3580,tsubo:42.83},
+    B:{label:'Bプラン（適正）',price:3350,tsubo:40.08},
+    C:{label:'Cプラン（売切）',price:3100,tsubo:37.08},
   },
+  team:[
+    {id:1,name:'山本',role:'課長 / 管理者',pm:false},
+    {id:2,name:'磯口',role:'PM / プロジェクトリーダー',pm:true},
+    {id:3,name:'望月',role:'営業・客付け',pm:false},
+    {id:4,name:'成山',role:'営業・客付け',pm:false},
+    {id:5,name:'清水',role:'営業・客付け',pm:false},
+    {id:6,name:'佐藤',role:'外構担当',pm:false},
+  ],
+  closingDate:'',
   costs:[
     {id:51,name:'仕入価格',amount:2700,note:'公簿83.57坪 坪単価32.31万円'},
     {id:52,name:'登記・印紙費用',amount:60,note:'所有権移転・抵当権設定等'},
@@ -681,12 +708,31 @@ function updateHeader(){
   const phaseEl=document.getElementById('stat-status');
   const labels={water:'水面下',contracted:'仕入契約済',active:'販売中',provided:'情報提供済',inquiry:'反響あり',negotiation:'交渉中',applied:'申込済',sold:'成約済'};
   if(phaseEl) phaseEl.textContent=labels[p.status]||p.status;
-  const dec=new Date('2026-11-30');
-  const diff=Math.ceil((dec-new Date())/86400000);
-  document.getElementById('stat-days').textContent=diff>0?diff+'日':'決済済';
+  const daysEl=document.getElementById('stat-days');
+  const daysLbl=document.getElementById('stat-days-lbl');
+  if(D.closingDate){
+    const elapsed=Math.floor((new Date()-new Date(D.closingDate))/86400000);
+    daysEl.textContent=elapsed+'日';
+    daysLbl.textContent='販売経過日';
+    if(p.status==='sold'){daysEl.style.color='var(--ok)';}
+    else if(elapsed>90){daysEl.style.color='var(--bad)';}
+    else{daysEl.style.color='var(--accent)';}
+  } else {
+    const dec=new Date('2026-11-30');
+    const diff=Math.ceil((dec-new Date())/86400000);
+    daysEl.textContent=diff>0?diff+'日':'要設定';
+    daysEl.style.color='var(--accent)';
+    daysLbl.textContent='決済まで';
+  }
   const plans=getPlans();
   const gross=plans[p.plan].price-totalCost();
   document.getElementById('stat-profit').textContent=gross+'万';
+}
+function setClosingDate(){
+  const d=prompt('仕入決済日を入力（例: 2026-11-30）',D.closingDate||'');
+  if(d===null)return;
+  D.closingDate=d.trim();
+  save();updateHeader();toast('決済日を設定しました');
 }
 
 // Plot card
@@ -808,8 +854,9 @@ document.getElementById('ms-modal').addEventListener('click',e=>{if(e.target===d
 // Phases
 function renderPhases(){
   document.getElementById('phases-grid').innerHTML=D.phases.map(ph=>`
-    <div class="ph-row">
-      <div><div class="ph-name">${ph.name}</div>${ph.note?`<div class="ph-note">${ph.note}</div>`:''}</div>
+    <div class="ph-row" draggable="true" data-id="${ph.id}"
+      ondragstart="onDragStart(event,${ph.id},'phases')" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,${ph.id},'phases')" ondragend="onDragEnd(event)">
+      <div><div class="ph-name"><span class="drag-handle" title="ドラッグで並び替え">⠿</span> ${ph.name}</div>${ph.note?`<div class="ph-note">${ph.note}</div>`:''}</div>
       <div>
         ${ph.status==='doing'?`<input type="range" min="0" max="100" value="${ph.pct}" style="width:100%" oninput="setPct(${ph.id},+this.value)"> <span style="font-size:11px;color:var(--text-m)">${ph.pct}%</span>`:''}
       </div>
@@ -860,10 +907,29 @@ function savePhase(){
 function delPhase(id,btn){safeDelete(btn,()=>{D.phases=D.phases.filter(x=>x.id!==id);save();renderPhases();toast('削除しました');});}
 document.getElementById('phase-modal').addEventListener('click',e=>{if(e.target===document.getElementById('phase-modal'))closePhaseModal();});
 
+// Drag & drop
+let _dragId=null,_dragKey=null;
+function onDragStart(e,id,key){_dragId=id;_dragKey=key;e.currentTarget.classList.add('dragging');e.dataTransfer.effectAllowed='move';}
+function onDragOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over');}
+function onDragLeave(e){e.currentTarget.classList.remove('drag-over');}
+function onDrop(e,toId,key){
+  e.preventDefault();e.currentTarget.classList.remove('drag-over');
+  if(_dragId===toId||_dragKey!==key)return;
+  const list=D[key];
+  const fi=list.findIndex(x=>x.id===_dragId),ti=list.findIndex(x=>x.id===toId);
+  if(fi<0||ti<0)return;
+  list.splice(ti,0,list.splice(fi,1)[0]);
+  save();
+  if(key==='tasks')renderTasks();
+  else if(key==='phases')renderPhases();
+}
+function onDragEnd(e){e.currentTarget.classList.remove('dragging');document.querySelectorAll('.drag-over').forEach(el=>el.classList.remove('drag-over'));}
+
 // Tasks
 function renderTasks(){
   document.getElementById('task-list').innerHTML=D.tasks.map(t=>`
-    <div class="task-item ${t.done?'done':''}">
+    <div class="task-item ${t.done?'done':''}" draggable="true" data-id="${t.id}"
+      ondragstart="onDragStart(event,${t.id},'tasks')" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event,${t.id},'tasks')" ondragend="onDragEnd(event)">
       <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask(${t.id})">
       <div style="min-width:0;flex:1">
         <div class="task-txt">${t.text}</div>
@@ -873,7 +939,8 @@ function renderTasks(){
           ${t.memo?`<span>📝 ${t.memo}</span>`:''}
         </div>
       </div>
-      <div style="display:flex;gap:5px;flex-shrink:0;margin-top:1px">
+      <div style="display:flex;gap:5px;flex-shrink:0;margin-top:1px;align-items:center">
+        <span class="drag-handle" title="ドラッグで並び替え">⠿</span>
         <button class="cc-btn" onclick="editTask(${t.id})">編集</button>
         <button class="cc-btn del" onclick="delTask(${t.id},this)">削除</button>
       </div>
@@ -1158,11 +1225,14 @@ function renderBudget(){
     return `<div class="scen ${cls}">
       <div class="scen-lbl">${pl.label}</div>
       <div style="display:flex;align-items:baseline;gap:4px;margin:4px 0 2px">
-        <input type="number" value="${pl.price}" min="0" step="10" style="width:120px;font-size:22px;font-weight:700;border:none;border-bottom:2px solid currentColor;background:transparent;font-variant-numeric:tabular-nums;color:inherit;font-family:var(--serif);outline:none;padding:2px 0" onchange="setPlanPrice('${k}',+this.value)" oninput="setPlanPrice('${k}',+this.value)">
+        <input type="number" value="${pl.price}" min="0" step="10" style="width:120px;font-size:22px;font-weight:700;border:none;border-bottom:2px solid currentColor;background:transparent;font-variant-numeric:tabular-nums;color:inherit;font-family:var(--serif);outline:none;padding:2px 0" onchange="setPlanPrice('${k}','price',+this.value)" oninput="setPlanPrice('${k}','price',+this.value)">
         <span style="font-size:14px;opacity:.7">万円</span>
       </div>
       <div class="scen-sub">粗利 ${gross}万円（${grossPct}%）</div>
-      <div class="scen-sub" style="margin-top:3px">坪単価 ${tsubo}万/坪</div>
+      <div style="display:flex;align-items:center;gap:4px;margin-top:4px">
+        <input type="number" value="${pl.tsubo||tsubo}" min="0" step="0.1" style="width:60px;font-size:13px;border:none;border-bottom:1px solid currentColor;background:transparent;font-variant-numeric:tabular-nums;color:inherit;font-family:var(--sans);outline:none;opacity:.8" onchange="setPlanPrice('${k}','tsubo',+this.value)">
+        <span style="font-size:11px;opacity:.7">万/坪</span>
+      </div>
     </div>`;
   }).join('');
   const costRows=costs.map(c=>`<tr>
@@ -1202,9 +1272,9 @@ function renderBudget(){
     </div>
   `;
 }
-function setPlanPrice(key,price){
+function setPlanPrice(key,field,val){
   if(!D.plans)D.plans=JSON.parse(JSON.stringify(DEF.plans));
-  D.plans[key].price=price;
+  D.plans[key][field]=val;
   save();renderBudget();renderPlot();updateHeader();
 }
 function setCostField(id,field,val){
@@ -1223,6 +1293,58 @@ function delCost(id){
   D.costs=D.costs.filter(x=>x.id!==id);save();renderBudget();renderPlot();updateHeader();
 }
 
+// Team
+function renderTeam(){
+  const team=D.team||DEF.team;
+  document.getElementById('team-grid').innerHTML=team.map(m=>`
+    <div class="mem-card" style="position:relative">
+      <div class="mem-av ${m.pm?'pm':''}">${m.name.charAt(0)}</div>
+      <div class="mem-name">${m.name}</div>
+      <div class="mem-role">${m.role}</div>
+      <div style="position:absolute;top:8px;right:8px;display:flex;gap:4px;opacity:0;transition:opacity .12s" class="mem-btns">
+        <button class="cc-btn" onclick="openTeamModal(${m.id})">編集</button>
+        <button class="cc-btn del" onclick="delTeam(${m.id},this)">削除</button>
+      </div>
+    </div>
+  `).join('');
+  document.querySelectorAll('.mem-card').forEach(c=>{
+    c.addEventListener('mouseenter',()=>c.querySelector('.mem-btns').style.opacity='1');
+    c.addEventListener('mouseleave',()=>c.querySelector('.mem-btns').style.opacity='0');
+  });
+}
+function openTeamModal(id){
+  const m=id?(D.team||DEF.team).find(x=>x.id===id):null;
+  document.getElementById('team-modal-ttl').textContent=m?'✏️ メンバーを編集':'👥 メンバーを追加';
+  document.getElementById('team-id-in').value=id||'';
+  document.getElementById('team-name-in').value=m?m.name:'';
+  document.getElementById('team-role-in').value=m?m.role:'';
+  document.getElementById('team-pm-in').checked=m?!!m.pm:false;
+  document.getElementById('team-modal').classList.add('on');
+}
+function closeTeamModal(){document.getElementById('team-modal').classList.remove('on');}
+function saveTeam(){
+  const name=document.getElementById('team-name-in').value.trim();
+  if(!name)return;
+  const role=document.getElementById('team-role-in').value.trim();
+  const pm=document.getElementById('team-pm-in').checked;
+  const idStr=document.getElementById('team-id-in').value;
+  if(!D.team)D.team=JSON.parse(JSON.stringify(DEF.team));
+  if(idStr){
+    const m=D.team.find(x=>x.id===parseInt(idStr));
+    if(m){m.name=name;m.role=role;m.pm=pm;}
+  } else {
+    D.team.push({id:++D.nextId,name,role,pm});
+  }
+  save();closeTeamModal();renderTeam();toast('保存しました');
+}
+function delTeam(id,btn){
+  safeDelete(btn,()=>{
+    if(!D.team)D.team=JSON.parse(JSON.stringify(DEF.team));
+    D.team=D.team.filter(x=>x.id!==id);save();renderTeam();toast('削除しました');
+  });
+}
+document.getElementById('team-modal').addEventListener('click',e=>{if(e.target===document.getElementById('team-modal'))closeTeamModal();});
+
 // Render all
 function renderAll(){
   renderPlot();
@@ -1230,6 +1352,7 @@ function renderAll(){
   renderMilestones();
   renderPhases();
   renderTasks();
+  renderTeam();
   renderContacts();
   renderDocs();
   renderLinks();
@@ -1249,6 +1372,8 @@ DB_REF.once('value', snap=>{
     if(!D.phases)D.phases=DEF.phases;
     if(!D.plans)D.plans=JSON.parse(JSON.stringify(DEF.plans));
     if(!D.costs)D.costs=JSON.parse(JSON.stringify(DEF.costs));
+    if(!D.team)D.team=JSON.parse(JSON.stringify(DEF.team));
+    if(D.closingDate===undefined)D.closingDate='';
     if(!D.docs)D.docs=[];
     if(!D.links)D.links=DEF.links;
   }
