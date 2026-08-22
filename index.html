@@ -238,6 +238,11 @@ div:hover>.link-edit,div:hover>.link-x{opacity:1}
 .drag-over{border-top:3px solid var(--accent)!important;margin-top:-1px}
 .drag-handle{cursor:grab;color:var(--text-m);font-size:13px;padding:0 4px;user-select:none}
 .drag-handle:active{cursor:grabbing}
+.editable-cell{cursor:text;border-radius:3px;padding:2px 5px;outline:none;min-width:20px;display:inline-block;line-height:1.4;transition:background .1s}
+.editable-cell:hover{background:var(--accent-lt)}
+.editable-cell:focus{background:var(--surface);outline:2px solid var(--accent)}
+.price-click{cursor:pointer;border-bottom:2px dashed currentColor;padding-bottom:1px;transition:opacity .1s}
+.price-click:hover{opacity:.75}
 .modal h3{font-family:var(--serif);font-size:15px;font-weight:700;color:var(--text);margin-bottom:16px}
 .modal label{display:block;font-size:12px;color:var(--text-m);margin-bottom:4px;margin-top:11px}
 .modal label:first-of-type{margin-top:0}
@@ -619,8 +624,9 @@ firebase.initializeApp({
 const DB_REF = firebase.database().ref('ryoke3');
 
 function getPlans(){return D.plans||DEF.plans;}
-function totalCost(){return (D.costs||DEF.costs).reduce((s,c)=>s+(Number(c.amount)||0),0);}
+function totalCost(){const raw=(D.costs||DEF.costs).reduce((s,c)=>s+(Number(c.amount)||0),0);return Math.round(raw*100)/100;}
 const TSUBO = 81.45; // 有効坪数（セットバック後）
+const DATA_VERSION = 3; // この値を上げるとFirebaseデータをDEFにリセット
 function planTsubo(price){return Math.round(price/TSUBO*10)/10;} // 万円/坪（小数1桁）
 
 const ST_LABEL = {water:'水面下（仕入前）',contracted:'仕入契約済',active:'情報提供前',provided:'情報提供済',inquiry:'反響あり',negotiation:'交渉中',applied:'申込済',sold:'成約済'};
@@ -730,7 +736,7 @@ function updateHeader(){
     daysLbl.textContent='決済まで';
   }
   const plans=getPlans();
-  const gross=plans[p.plan].price-totalCost();
+  const gross=Math.round((plans[p.plan].price-totalCost())*100)/100;
   document.getElementById('stat-profit').textContent=gross+'万';
 }
 function setClosingDate(){
@@ -746,7 +752,7 @@ function renderPlot(){
   const plans=getPlans();
   const pd=plans[p.plan];
   const cost=totalCost();
-  const gross=pd.price-cost;
+  const gross=Math.round((pd.price-cost)*100)/100;
   const grossPct=Math.round(gross/pd.price*100);
   const tsubo=planTsubo(pd.price);
   document.getElementById('strip').innerHTML=`
@@ -1219,37 +1225,37 @@ function renderBudget(){
   const plans=getPlans();
   const costs=D.costs||DEF.costs;
   const cost=totalCost();
-  const INP='border:none;background:transparent;font-family:var(--sans);font-size:13px;color:var(--text);outline:none;width:100%';
-  const INP_NUM='border:none;background:transparent;font-family:var(--sans);font-size:13px;color:var(--text);outline:none;width:80px;text-align:right;font-variant-numeric:tabular-nums';
   const scenHTML=['A','B','C'].map(k=>{
     const pl=plans[k];
-    const gross=pl.price-cost;
+    const gross=Math.round((pl.price-cost)*100)/100;
     const grossPct=pl.price>0?Math.round(gross/pl.price*100):0;
     const tsubo=planTsubo(pl.price);
     const cls=k==='A'?'sa':k==='B'?'sb':'sc';
+    const grossColor=k==='A'?'var(--warn)':k==='B'?'var(--accent)':'var(--ok)';
     return `<div class="scen ${cls}">
       <div class="scen-lbl">${pl.label}</div>
       <div style="display:flex;align-items:baseline;gap:4px;margin:4px 0 2px">
-        <input type="number" value="${pl.price}" min="0" step="10" style="width:120px;font-size:22px;font-weight:700;border:none;border-bottom:2px solid currentColor;background:transparent;font-variant-numeric:tabular-nums;color:inherit;font-family:var(--serif);outline:none;padding:2px 0" onchange="setPlanPrice('${k}',+this.value)" oninput="setPlanPrice('${k}',+this.value)">
+        <span class="scen-ttl price-click" id="price-disp-${k}" onclick="startPriceEdit('${k}')" title="クリックして編集">${pl.price.toLocaleString()}</span>
+        <input type="number" value="${pl.price}" min="0" step="10" id="price-in-${k}" style="display:none;width:120px;font-size:22px;font-weight:700;border:none;border-bottom:2px solid currentColor;background:transparent;font-variant-numeric:tabular-nums;color:inherit;font-family:var(--serif);outline:none;padding:2px 0" onblur="endPriceEdit('${k}')" onkeydown="if(event.key==='Enter')this.blur()">
         <span style="font-size:14px;opacity:.7">万円</span>
       </div>
-      <div class="scen-sub">粗利 ${gross}万円（${grossPct}%）</div>
+      <div class="scen-sub" style="color:${grossColor};font-weight:600">粗利 ${gross.toLocaleString()}万円（${grossPct}%）</div>
       <div class="scen-sub" style="margin-top:3px">坪単価 ${tsubo}万/坪（${TSUBO}坪換算）</div>
     </div>`;
   }).join('');
   const costRows=costs.map(c=>`<tr>
-    <td><input type="text" value="${c.name}" style="${INP}" onchange="setCostField(${c.id},'name',this.value)"></td>
-    <td><input type="number" value="${c.amount}" min="0" style="${INP_NUM}" onchange="setCostField(${c.id},'amount',+this.value)" oninput="setCostField(${c.id},'amount',+this.value)"></td>
-    <td><input type="text" value="${c.note||''}" style="${INP}" onchange="setCostField(${c.id},'note',this.value)"></td>
+    <td><span class="editable-cell" contenteditable="true" onblur="setCostField(${c.id},'name',this.textContent.trim())" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${c.name}</span></td>
+    <td style="text-align:right"><span class="editable-cell" contenteditable="true" style="min-width:60px;text-align:right;font-variant-numeric:tabular-nums" onblur="setCostField(${c.id},'amount',parseFloat(this.textContent)||0)" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${c.amount}</span></td>
+    <td><span class="editable-cell" contenteditable="true" onblur="setCostField(${c.id},'note',this.textContent.trim())" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">${c.note||''}</span></td>
     <td style="width:50px;text-align:center"><button class="cc-btn del" onclick="delCost(${c.id})">削除</button></td>
   </tr>`).join('');
-  const bPl=plans['B'];const bG=bPl.price-cost;const bGP=bPl.price>0?Math.round(bG/bPl.price*100):0;
-  const cPl=plans['C'];const cG=cPl.price-cost;const cGP=cPl.price>0?Math.round(cG/cPl.price*100):0;
+  const bPl=plans['B'];const bG=Math.round((bPl.price-cost)*100)/100;const bGP=bPl.price>0?Math.round(bG/bPl.price*100):0;
+  const cPl=plans['C'];const cG=Math.round((cPl.price-cost)*100)/100;const cGP=cPl.price>0?Math.round(cG/cPl.price*100):0;
   function gmroi(gp,rot){return Math.round(gp*rot);}
   function gmClass(v){return v>=40?'g-ok':v>=20?'g-warn':'g-bad';}
   function gmBadge(v){return v>=40?`<span class="badge b-sold">◎ 社内基準の${Math.round(v/40*10)/10}倍</span>`:v>=20?`<span class="badge b-inquiry">△ 基準以下</span>`:`<span class="badge" style="background:var(--bad-bg);color:var(--bad)">✕</span>`;}
   document.getElementById('budget-content').innerHTML=`
-    <h2 class="sec">💴 価格シナリオ <span style="font-size:11px;color:var(--text-m);font-weight:400">数字を直接クリックして編集できます</span></h2>
+    <h2 class="sec">💴 価格シナリオ <span style="font-size:11px;color:var(--text-m);font-weight:400">金額をクリックして編集できます</span></h2>
     <div class="scen-grid">${scenHTML}</div>
     <h2 class="sec">📋 原価内訳</h2>
     <div class="card btbl-wrap" style="margin-bottom:10px">
@@ -1273,6 +1279,19 @@ function renderBudget(){
       </table>
     </div>
   `;
+}
+function startPriceEdit(k){
+  const disp=document.getElementById('price-disp-'+k);
+  const inp=document.getElementById('price-in-'+k);
+  if(!disp||!inp)return;
+  disp.style.display='none';
+  inp.style.display='inline-block';
+  inp.focus();inp.select();
+}
+function endPriceEdit(k){
+  const val=+document.getElementById('price-in-'+k).value;
+  if(val>0)setPlanPrice(k,val);
+  else renderBudget();
 }
 function setPlanPrice(key,val){
   if(!D.plans)D.plans=JSON.parse(JSON.stringify(DEF.plans));
@@ -1372,12 +1391,17 @@ DB_REF.once('value', snap=>{
     if(!D.tasks)D.tasks=DEF.tasks;
     if(!D.milestones)D.milestones=DEF.milestones;
     if(!D.phases)D.phases=DEF.phases;
-    if(!D.plans)D.plans=JSON.parse(JSON.stringify(DEF.plans));
-    if(!D.costs)D.costs=JSON.parse(JSON.stringify(DEF.costs));
     if(!D.team)D.team=JSON.parse(JSON.stringify(DEF.team));
     if(D.closingDate===undefined)D.closingDate='';
     if(!D.docs)D.docs=[];
     if(!D.links)D.links=DEF.links;
+    // バージョンが古い場合、plans/costsをDEFにリセット（古いFirebaseデータの上書き）
+    if((D._version||0)<DATA_VERSION){
+      D.plans=JSON.parse(JSON.stringify(DEF.plans));
+      D.costs=JSON.parse(JSON.stringify(DEF.costs));
+      D._version=DATA_VERSION;
+      DB_REF.set(D);
+    }
   }
   renderAll();
   document.getElementById('loading').style.display='none';
@@ -1388,7 +1412,14 @@ DB_REF.on('value', snap=>{
   const val=snap.val();
   if(val){
     const prev=JSON.stringify(D);
-    const next=JSON.stringify(Object.assign(JSON.parse(JSON.stringify(DEF)),val));
+    const merged=Object.assign(JSON.parse(JSON.stringify(DEF)),val);
+    // バージョンが古い場合はplans/costsをDEFで上書き（同期時も適用）
+    if((merged._version||0)<DATA_VERSION){
+      merged.plans=JSON.parse(JSON.stringify(DEF.plans));
+      merged.costs=JSON.parse(JSON.stringify(DEF.costs));
+      merged._version=DATA_VERSION;
+    }
+    const next=JSON.stringify(merged);
     if(prev!==next){D=JSON.parse(next);renderAll();}
   }
 });
