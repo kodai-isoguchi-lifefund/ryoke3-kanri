@@ -267,8 +267,8 @@ div:hover>.link-edit,div:hover>.link-x{opacity:1}
 <div class="hdr">
   <div class="hdr-top">
     <div class="hdr-ttl">
-      <h1 id="proj-name" contenteditable="false" title="クリックで編集" onclick="startEditField(this,'projName')" onblur="saveProjField(this,'projName')" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">領家3丁目 短期販売計画</h1>
-      <div class="sub" id="proj-sub" contenteditable="false" title="クリックで編集" onclick="startEditField(this,'projSub')" onblur="saveProjField(this,'projSub')" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">浜松市中央区領家3丁目532-1　／　83.57坪 水面下物件　／　社外秘</div>
+      <h1 id="proj-name" contenteditable="true" title="クリックして編集" onblur="saveProjField(this,'projName')" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">領家3丁目 短期販売計画</h1>
+      <div class="sub" id="proj-sub" contenteditable="true" title="クリックして編集" onblur="saveProjField(this,'projSub')" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">浜松市中央区領家3丁目532-1　／　83.57坪 水面下物件　／　社外秘</div>
     </div>
     <div class="hdr-stats">
       <div class="stat"><span class="v" id="stat-status">水面下</span><span class="l">現在フェーズ</span></div>
@@ -1217,11 +1217,17 @@ function delLink(id,btn){safeDelete(btn,()=>{D.links=D.links.filter(x=>x.id!==id
 document.getElementById('link-modal').addEventListener('click',e=>{if(e.target===document.getElementById('link-modal'))closeLinkModal();});
 
 // Header editable fields
-function startEditField(el,key){el.contentEditable='true';el.focus();}
 function saveProjField(el,key){
-  el.contentEditable='false';
-  D[key]=el.textContent.trim();
+  const val=el.textContent.trim();
+  if(!val){el.textContent=DEF[key];return;}
+  D[key]=val;
   save();toast('保存しました');
+}
+function syncProjFields(){
+  const n=document.getElementById('proj-name');
+  const s=document.getElementById('proj-sub');
+  if(n&&D.projName&&n.textContent!==D.projName)n.textContent=D.projName;
+  if(s&&D.projSub&&s.textContent!==D.projSub)s.textContent=D.projSub;
 }
 
 // Safe delete with confirm
@@ -1379,6 +1385,7 @@ document.getElementById('team-modal').addEventListener('click',e=>{if(e.target==
 
 // Render all
 function renderAll(){
+  syncProjFields();
   renderPlot();
   renderBudget();
   renderMilestones();
